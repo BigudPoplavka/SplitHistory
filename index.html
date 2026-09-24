@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>SplitHistory — историко-контекстуальные заметки</title>
+<link rel="stylesheet" href="styles.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./node_modules/three/build/three.module.js",
+    "three/addons/": "./node_modules/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+
+  <aside id="sidebar-left">
+    <div class="vault-header">
+      <h1>Хранилище</h1>
+      <div class="group-by-row">
+        <span>группировать по:</span>
+        <select id="group-by-select">
+          <option value="layer">слоям</option>
+          <option value="type">типу</option>
+          <option value="tag">тегам</option>
+          <option value="decade">периоду</option>
+        </select>
+      </div>
+    </div>
+    <div class="tree-toolbar">
+      <button id="add-note-btn" class="btn-primary">+ Заметка</button>
+    </div>
+    <div id="tree-panel" class="tree-panel"></div>
+  </aside>
+
+  <main id="viewport">
+    <div id="scene-container"></div>
+    <div id="layer-2d-container" class="hidden">
+      <canvas id="layer-2d-canvas"></canvas>
+    </div>
+
+    <div id="view-mode-toggle" class="floating-panel view-toggle">
+      <button data-mode="3d" class="active">3D</button>
+      <button data-mode="2d">2D слой</button>
+    </div>
+
+    <div id="note-tabs-dock" class="hidden"></div>
+
+    <div id="mini-graph-panel" class="floating-panel">
+      <div class="floating-panel-title">Граф слоя</div>
+      <canvas id="mini-graph-canvas" width="360" height="220"></canvas>
+    </div>
+
+    <div id="timeline-bar" class="floating-panel">
+      <div class="timeline-scale-row">
+        <button class="timeline-scale-btn" data-span="1000">1000 лет</button>
+        <button class="timeline-scale-btn" data-span="100">100 лет</button>
+        <button class="timeline-scale-btn" data-span="10">десятилетие</button>
+        <button class="timeline-scale-btn" data-span="">весь период</button>
+        <span class="spacer"></span>
+        <button id="timeline-pan-left" class="btn-icon" title="Сдвинуть влево">◀</button>
+        <button id="timeline-pan-right" class="btn-icon" title="Сдвинуть вправо">▶</button>
+      </div>
+      <div class="timeline-track-wrap">
+        <div class="timeline-ticks" id="timeline-ticks"></div>
+        <div class="timeline-track" id="timeline-track">
+          <div class="timeline-range" id="timeline-range"></div>
+          <div class="timeline-handle" id="timeline-handle-from" data-handle="from"></div>
+          <div class="timeline-handle" id="timeline-handle-to" data-handle="to"></div>
+        </div>
+      </div>
+      <div class="timeline-label">Диапазон: <span id="timeline-readout"></span></div>
+    </div>
+  </main>
+
+  <aside id="sidebar-right">
+    <div id="layer-info-panel" class="panel">
+      <div class="panel-title" id="layer-info-title">Слой не выбран</div>
+      <div class="panel-body" id="layer-info-body"></div>
+    </div>
+
+    <div id="layers-panel" class="panel layers-panel">
+      <div class="panel-title-row">
+        <span class="panel-title">Слои</span>
+        <button id="add-layer-btn" class="btn-icon" title="Добавить слой">+</button>
+      </div>
+      <div id="layers-list" class="layers-list"></div>
+    </div>
+  </aside>
+
+</div>
+
+<div id="layer-modal-overlay" class="overlay hidden">
+  <div class="layer-modal">
+    <div class="inspector-header">
+      <h2 id="layer-modal-title">Новый слой</h2>
+      <button id="layer-modal-close" class="btn-icon">×</button>
+    </div>
+    <div class="inspector-body">
+      <label>Название слоя
+        <input id="lf-name" type="text" />
+      </label>
+      <label>Цвет
+        <input id="lf-color" type="color" />
+      </label>
+    </div>
+    <div class="inspector-footer">
+      <button id="layer-modal-delete" class="btn-danger">Удалить слой</button>
+      <div class="spacer"></div>
+      <button id="layer-modal-cancel" class="btn-secondary">Отмена</button>
+      <button id="layer-modal-save" class="btn-primary">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div id="status-toast" class="status-toast hidden"></div>
+
+<script type="module" src="./src/renderer.js"></script>
+</body>
+</html>

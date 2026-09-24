@@ -1,0 +1,176 @@
+{
+  "layers": [
+    { "id": "map", "name": "Карта", "kind": "map", "order": 0, "color": "#e0645a", "visible": true, "opacity": 1 },
+    { "id": "people", "name": "Люди", "kind": "notes", "order": 1, "color": "#f2f2f2", "visible": true, "opacity": 0.85 },
+    { "id": "events", "name": "События", "kind": "notes", "order": 2, "color": "#f2f2f2", "visible": true, "opacity": 0.85 },
+    { "id": "ideas", "name": "Идеи", "kind": "notes", "order": 3, "color": "#8ec9ff", "visible": true, "opacity": 0.85 }
+  ],
+  "notes": [
+    {
+      "id": "place-woolsthorpe",
+      "layerId": "map",
+      "title": "Вулсторп-Мэнор",
+      "type": "artifact",
+      "content": "Родовое поместье семьи Ньютонов в Линкольншире, место рождения Исаака Ньютона.",
+      "dateStart": null,
+      "dateEnd": null,
+      "geo": { "lat": 52.8, "lng": -0.63 },
+      "links": []
+    },
+    {
+      "id": "place-cambridge",
+      "layerId": "map",
+      "title": "Кембридж",
+      "type": "artifact",
+      "content": "Университетский город, где Ньютон учился и преподавал в Тринити-колледже.",
+      "dateStart": null,
+      "dateEnd": null,
+      "geo": { "lat": 52.2, "lng": 0.12 },
+      "links": []
+    },
+    {
+      "id": "place-london",
+      "layerId": "map",
+      "title": "Лондон",
+      "type": "artifact",
+      "content": "Место заседаний Королевского общества.",
+      "dateStart": null,
+      "dateEnd": null,
+      "geo": { "lat": 51.5, "lng": -0.12 },
+      "links": []
+    },
+    {
+      "id": "place-leipzig",
+      "layerId": "map",
+      "title": "Лейпциг",
+      "type": "artifact",
+      "content": "Родной город Готфрида Лейбница.",
+      "dateStart": null,
+      "dateEnd": null,
+      "geo": { "lat": 51.34, "lng": 12.37 },
+      "links": []
+    },
+    {
+      "id": "place-pisa",
+      "layerId": "map",
+      "title": "Пиза",
+      "type": "artifact",
+      "content": "Родной город Галилео Галилея.",
+      "dateStart": null,
+      "dateEnd": null,
+      "geo": { "lat": 43.7, "lng": 10.4 },
+      "links": []
+    },
+    {
+      "id": "person-newton",
+      "layerId": "people",
+      "title": "Исаак Ньютон",
+      "type": "person",
+      "content": "Английский физик, математик и астроном, один из создателей классической механики.",
+      "dateStart": 1643,
+      "dateEnd": 1727,
+      "geo": { "lat": 52.2, "lng": 0.12 },
+      "links": [
+        { "target": "idea-gravity", "type": "сформулировал" },
+        { "target": "idea-calculus", "type": "разработал" },
+        { "target": "event-principia", "type": "опубликовал" },
+        { "target": "event-royal-society", "type": "участвовал" },
+        { "target": "event-plague-years", "type": "участвовал" },
+        { "target": "person-leibniz", "type": "соперничал" },
+        { "target": "person-galileo", "type": "опирался на идеи" },
+        { "target": "place-woolsthorpe", "type": "родился в" }
+      ]
+    },
+    {
+      "id": "person-leibniz",
+      "layerId": "people",
+      "title": "Готфрид Лейбниц",
+      "type": "person",
+      "content": "Немецкий философ и математик, независимо разработал дифференциальное исчисление.",
+      "dateStart": 1646,
+      "dateEnd": 1716,
+      "geo": { "lat": 51.34, "lng": 12.37 },
+      "links": [
+        { "target": "idea-calculus", "type": "разработал" }
+      ]
+    },
+    {
+      "id": "person-galileo",
+      "layerId": "people",
+      "title": "Галилео Галилей",
+      "type": "person",
+      "content": "Итальянский физик и астроном, заложивший основы механики и наблюдательной астрономии.",
+      "dateStart": 1564,
+      "dateEnd": 1642,
+      "geo": { "lat": 43.7, "lng": 10.4 },
+      "links": []
+    },
+    {
+      "id": "event-plague-years",
+      "layerId": "events",
+      "title": "Чумные годы в Вулсторпе",
+      "type": "event",
+      "content": "Кембридж закрыт из-за эпидемии чумы, Ньютон уединяется в поместье и закладывает основы будущих открытий.",
+      "dateStart": 1665,
+      "dateEnd": 1667,
+      "geo": { "lat": 52.8, "lng": -0.63 },
+      "links": [
+        { "target": "person-newton", "type": "участвовал" }
+      ]
+    },
+    {
+      "id": "event-royal-society",
+      "layerId": "events",
+      "title": "Основание Королевского общества",
+      "type": "event",
+      "content": "Научное общество в Лондоне, объединившее ведущих учёных эпохи.",
+      "dateStart": 1660,
+      "dateEnd": null,
+      "geo": { "lat": 51.5, "lng": -0.12 },
+      "links": [
+        { "target": "person-newton", "type": "участвовал" }
+      ]
+    },
+    {
+      "id": "event-principia",
+      "layerId": "events",
+      "title": "Публикация «Начал» (Principia Mathematica)",
+      "type": "event",
+      "content": "Главный труд Ньютона, заложивший основы классической механики и закон всемирного тяготения.",
+      "dateStart": 1687,
+      "dateEnd": null,
+      "geo": { "lat": 52.2, "lng": 0.12 },
+      "links": [
+        { "target": "person-newton", "type": "автор" },
+        { "target": "idea-gravity", "type": "содержит" }
+      ]
+    },
+    {
+      "id": "idea-gravity",
+      "layerId": "ideas",
+      "title": "Закон всемирного тяготения",
+      "type": "idea",
+      "content": "Универсальный закон, описывающий гравитационное притяжение между телами.",
+      "dateStart": 1687,
+      "dateEnd": null,
+      "geo": null,
+      "links": [
+        { "target": "person-newton", "type": "автор" }
+      ]
+    },
+    {
+      "id": "idea-calculus",
+      "layerId": "ideas",
+      "title": "Дифференциальное и интегральное исчисление",
+      "type": "idea",
+      "content": "Математический аппарат, независимо разработанный Ньютоном и Лейбницем.",
+      "dateStart": 1670,
+      "dateEnd": 1685,
+      "geo": null,
+      "links": [
+        { "target": "person-newton", "type": "соавтор" },
+        { "target": "person-leibniz", "type": "соавтор" }
+      ]
+    }
+  ]
+}

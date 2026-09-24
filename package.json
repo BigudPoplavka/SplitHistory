@@ -1,0 +1,16 @@
+{
+  "name": "split-history",
+  "version": "0.1.0",
+  "description": "Историко-контекстуальные заметки — многослойный 3D редактор знаний с картой и таймлайном",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}
