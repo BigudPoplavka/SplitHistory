@@ -1,4 +1,5 @@
 import { lngLatToUnit } from './worldMap.js';
+import { getNoteAnchor } from './geo.js';
 
 function seededUnit(str) {
   let h = 0;
@@ -18,8 +19,9 @@ export function computeLayerLayoutPixels(notes, width, height) {
   const scatterRadius = Math.min(width, height) * 0.28;
 
   for (const note of notes) {
-    if (note.geo && typeof note.geo.lat === 'number' && typeof note.geo.lng === 'number') {
-      const u = lngLatToUnit(note.geo.lat, note.geo.lng);
+    const anchor = getNoteAnchor(note);
+    if (anchor) {
+      const u = lngLatToUnit(anchor.lat, anchor.lng);
       positions.set(note.id, { x: u.x * width, y: u.y * height });
       fixedSet.add(note.id);
     } else {

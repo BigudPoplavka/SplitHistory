@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { store, getLayer, isNoteInTimeline } from './store.js';
-import { MAP_WIDTH, MAP_HEIGHT, layerY } from './projection.js';
+import { MAP_WIDTH, MAP_HEIGHT, layerY, latLngToPlane } from './projection.js';
 import { computeGlobalLayout } from './layout.js';
 import { createMapCanvas } from './worldMap.js';
+import { matchesQuery } from './search.js';
 
 let scene, camera, renderer, labelRenderer, controls, container;
 let raycaster, pointer;
@@ -14,6 +15,7 @@ const layerPlaneMeshes = new Map();
 const layerBorderLines = new Map();
 const layerLabelObjects = new Map();
 const noteMeshes = new Map();
+const noteGeometryLines = new Map();
 
 let edgeList = [];
 let edgesDefaultObj = null;
@@ -25,7 +27,10 @@ let lastStructureKey = null;
 function computeStructureKey(data) {
   const layersKey = data.layers.map((l) => `${l.id}:${l.order}:${l.kind}:${l.color}:${l.name}`).join('|');
   const notesKey = data.notes
-    .map((n) => `${n.id}:${n.layerId}:${n.geo ? n.geo.lat + ',' + n.geo.lng : ''}:${n.links.map((l) => l.target).join(',')}`)
+    .map((n) => `${n.id}:${n.layerId}:${n.geo ? n.geo.lat + ',' + n.geo.lng : ''}:` +
+      `${n.route ? n.route.map((p) => `${p.lat},${p.lng}`).join(';') : ''}:` +
+      `${n.region ? n.region.map((p) => p.join(',')).join(';') : ''}:` +
+      `${n.links.map((l) => l.target).join(',')}`)
     .join('|');
   return layersKey + '##' + notesKey;
 }
@@ -155,10 +160,12 @@ function clearStructure() {
     label.element.remove();
   }
   for (const mesh of noteMeshes.values()) disposeMesh(mesh);
+  for (const line of noteGeometryLines.values()) disposeMesh(line);
   layerPlaneMeshes.clear();
   layerBorderLines.clear();
   layerLabelObjects.clear();
   noteMeshes.clear();
+  noteGeometryLines.clear();
 }
 
 function buildLayerPlane(layer) {
@@ -227,6 +234,35 @@ function buildNoteMesh(note, position) {
   noteMeshes.set(note.id, mesh);
 }
 
+/** Рисует маршрут (ломаная) или регион (замкнутый контур) заметки поверх её слоя. */
+function buildNoteGeometryLine(note) {
+  let points = null;
+  let closed = false;
+  if (note.route && note.route.length > 1) {
+    points = note.route.map((p) => latLngToPlane(p.lat, p.lng));
+  } else if (note.region && note.region.length > 1) {
+    points = note.region.map(([lat, lng]) => latLngToPlane(lat, lng));
+    closed = true;
+  }
+  if (!points) return;
+
+  const layer = getLayer(note.layerId);
+  const y = layer ? layerY(layer.order) : 0;
+  const vecPoints = points.map((p) => new THREE.Vector3(p.x, y, p.z));
+  if (closed) vecPoints.push(vecPoints[0].clone());
+
+  const geometry = new THREE.BufferGeometry().setFromPoints(vecPoints);
+  const material = new THREE.LineBasicMaterial({
+    color: new THREE.Color((layer && layer.color) || '#ffffff'),
+    transparent: true,
+    opacity: 0.85
+  });
+  const line = new THREE.Line(geometry, material);
+  line.userData.noteId = note.id;
+  scene.add(line);
+  noteGeometryLines.set(note.id, line);
+}
+
 function rebuild() {
   clearStructure();
 
@@ -237,6 +273,7 @@ function rebuild() {
   for (const note of store.data.notes) {
     const pos = positions.get(note.id) || { x: 0, z: 0 };
     buildNoteMesh(note, pos);
+    buildNoteGeometryLine(note);
   }
 
   edgeList = [];
@@ -265,7 +302,9 @@ function applyFilters() {
     const mesh = noteMeshes.get(note.id);
     if (!mesh) continue;
     const layer = getLayer(note.layerId);
-    mesh.visible = (layer ? layer.visible : true) && isNoteInTimeline(note);
+    mesh.visible = (layer ? layer.visible : true) && isNoteInTimeline(note) && matchesQuery(note, store.searchQuery);
+    const line = noteGeometryLines.get(note.id);
+    if (line) line.visible = mesh.visible;
   }
 }
 

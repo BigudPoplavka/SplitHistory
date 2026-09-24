@@ -19,6 +19,7 @@
   <aside id="sidebar-left">
     <div class="vault-header">
       <h1>Хранилище</h1>
+      <input id="search-input" class="search-input" type="text" placeholder="Поиск по названию, тексту, тегам..." />
       <div class="group-by-row">
         <span>группировать по:</span>
         <select id="group-by-select">
@@ -31,6 +32,7 @@
     </div>
     <div class="tree-toolbar">
       <button id="add-note-btn" class="btn-primary">+ Заметка</button>
+      <button id="add-note-template-btn" class="btn-icon" title="Создать по шаблону">▾</button>
     </div>
     <div id="tree-panel" class="tree-panel"></div>
   </aside>
@@ -70,6 +72,7 @@
           <div class="timeline-handle" id="timeline-handle-from" data-handle="from"></div>
           <div class="timeline-handle" id="timeline-handle-to" data-handle="to"></div>
         </div>
+        <div class="timeline-periods" id="timeline-periods"></div>
       </div>
       <div class="timeline-label">Диапазон: <span id="timeline-readout"></span></div>
     </div>
@@ -104,6 +107,9 @@
       </label>
       <label>Цвет
         <input id="lf-color" type="color" />
+      </label>
+      <label>Иконка
+        <div id="lf-icon-picker" class="icon-picker"></div>
       </label>
     </div>
     <div class="inspector-footer">

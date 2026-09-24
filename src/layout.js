@@ -1,4 +1,5 @@
 import { MAP_WIDTH, MAP_HEIGHT, latLngToPlane } from './projection.js';
+import { getNoteAnchor } from './geo.js';
 
 const CLUSTER_ANCHOR = { x: -MAP_WIDTH * 0.32, z: -MAP_HEIGHT * 0.25 };
 const REPULSION = 6;
@@ -24,8 +25,9 @@ export function computeGlobalLayout(notes) {
   const fixedSet = new Set();
 
   for (const note of notes) {
-    if (note.geo && typeof note.geo.lat === 'number' && typeof note.geo.lng === 'number') {
-      positions.set(note.id, latLngToPlane(note.geo.lat, note.geo.lng));
+    const anchor = getNoteAnchor(note);
+    if (anchor) {
+      positions.set(note.id, latLngToPlane(anchor.lat, anchor.lng));
       fixedSet.add(note.id);
     } else {
       const angle = seededUnit(note.id) * Math.PI * 2;

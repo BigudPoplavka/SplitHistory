@@ -74,6 +74,19 @@ function buildMenuTemplate() {
         },
         { type: 'separator' },
         {
+          label: 'Экспорт',
+          submenu: [
+            { label: 'Граф в GraphML...', click: () => mainWindow.webContents.send('menu:export', 'graphml') },
+            { label: 'Гео в GeoJSON...', click: () => mainWindow.webContents.send('menu:export', 'geojson') },
+            { label: 'Таймлайн в CSV...', click: () => mainWindow.webContents.send('menu:export', 'csv') }
+          ]
+        },
+        {
+          label: 'Импорт источников (BibTeX)...',
+          click: () => mainWindow.webContents.send('menu:import-bibtex')
+        },
+        { type: 'separator' },
+        {
           label: 'Показать папку хранилища',
           click: () => shell.showItemInFolder(currentVaultPath)
         },
@@ -143,6 +156,62 @@ ipcMain.handle('vault:open', async () => {
   const filePath = result.filePaths[0];
   currentVaultPath = filePath;
   return { filePath, data: readVault(filePath) };
+});
+
+ipcMain.handle('attachment:add', async (_event, noteId) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Прикрепить файл',
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const srcPath = result.filePaths[0];
+  const destDir = path.join(app.getPath('userData'), 'attachments', noteId);
+  fs.mkdirSync(destDir, { recursive: true });
+  const fileName = path.basename(srcPath);
+  const destPath = path.join(destDir, fileName);
+  fs.copyFileSync(srcPath, destPath);
+  return { id: `att_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`, fileName, path: destPath };
+});
+
+ipcMain.handle('attachment:open', (_event, filePath) => {
+  shell.openPath(filePath);
+});
+
+ipcMain.handle('photo:set', async (_event, noteId) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Выбрать фото',
+    properties: ['openFile'],
+    filters: [{ name: 'Изображения', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const srcPath = result.filePaths[0];
+  const destDir = path.join(app.getPath('userData'), 'photos', noteId);
+  fs.mkdirSync(destDir, { recursive: true });
+  const fileName = path.basename(srcPath);
+  const destPath = path.join(destDir, fileName);
+  fs.copyFileSync(srcPath, destPath);
+  return { fileName, path: destPath };
+});
+
+ipcMain.handle('link:open-external', (_event, url) => {
+  if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+});
+
+ipcMain.handle('file:export', async (_event, defaultName, content) => {
+  const result = await dialog.showSaveDialog(mainWindow, { title: 'Экспорт', defaultPath: defaultName });
+  if (result.canceled || !result.filePath) return null;
+  fs.writeFileSync(result.filePath, content, 'utf-8');
+  return result.filePath;
+});
+
+ipcMain.handle('file:import-bibtex', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Импорт источников (BibTeX)',
+    properties: ['openFile'],
+    filters: [{ name: 'BibTeX', extensions: ['bib'] }]
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return fs.readFileSync(result.filePaths[0], 'utf-8');
 });
 
 app.whenReady().then(createWindow);

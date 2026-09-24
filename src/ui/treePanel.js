@@ -1,6 +1,8 @@
-import { store, setSelection, setGroupBy, deleteNote } from '../store.js';
+import { store, setSelection, setGroupBy, setSearchQuery, deleteNote } from '../store.js';
 import { openNoteWindow, createNoteWindow } from './noteWindows.js';
 import { showContextMenu } from './contextMenu.js';
+import { matchesQuery } from '../search.js';
+import { BUILTIN_TEMPLATES, applyTemplate } from '../templates.js';
 import { escapeHtml, TYPE_LABELS, formatDateRange } from '../utils.js';
 
 const collapsedGroups = new Set();
@@ -10,8 +12,20 @@ export function initTreePanel() {
   select.value = store.groupBy;
   select.addEventListener('change', () => setGroupBy(select.value));
 
+  const searchInput = document.getElementById('search-input');
+  searchInput.addEventListener('input', () => setSearchQuery(searchInput.value));
+
   document.getElementById('add-note-btn').addEventListener('click', () => {
     createNoteWindow(store.selection.layerId);
+  });
+
+  document.getElementById('add-note-template-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    showContextMenu(rect.left, rect.bottom + 4, BUILTIN_TEMPLATES.map((template) => ({
+      label: template.name,
+      onClick: () => createNoteWindow(store.selection.layerId, applyTemplate(template))
+    })));
   });
 }
 
@@ -19,10 +33,12 @@ function buildGroups() {
   const groupBy = store.groupBy;
   const groups = [];
   const byKey = new Map();
+  const isNoteVisible = (note) => matchesQuery(note, store.searchQuery);
+  const notes = store.data.notes.filter(isNoteVisible);
 
-  const ensure = (key, label, color) => {
+  const ensure = (key, label, color, icon) => {
     if (!byKey.has(key)) {
-      const g = { key, label, color, notes: [] };
+      const g = { key, label, color, icon: icon || null, notes: [] };
       byKey.set(key, g);
       groups.push(g);
     }
@@ -31,18 +47,18 @@ function buildGroups() {
 
   if (groupBy === 'layer') {
     for (const layer of [...store.data.layers].sort((a, b) => b.order - a.order)) {
-      ensure(layer.id, layer.name, layer.color);
+      ensure(layer.id, layer.name, layer.color, layer.icon);
     }
-    for (const note of store.data.notes) {
+    for (const note of notes) {
       const layer = store.data.layers.find((l) => l.id === note.layerId);
-      ensure(note.layerId, layer ? layer.name : 'Без слоя', layer ? layer.color : '#888').notes.push(note);
+      ensure(note.layerId, layer ? layer.name : 'Без слоя', layer ? layer.color : '#888', layer?.icon).notes.push(note);
     }
   } else if (groupBy === 'type') {
-    for (const note of store.data.notes) {
+    for (const note of notes) {
       ensure(note.type, TYPE_LABELS[note.type] || note.type, '#888').notes.push(note);
     }
   } else if (groupBy === 'tag') {
-    for (const note of store.data.notes) {
+    for (const note of notes) {
       const tags = note.tags && note.tags.length ? note.tags : ['Без тегов'];
       for (const tag of tags) ensure(tag, tag, '#888').notes.push(note);
     }
@@ -52,7 +68,7 @@ function buildGroups() {
       return a.label.localeCompare(b.label, 'ru');
     });
   } else {
-    for (const note of store.data.notes) {
+    for (const note of notes) {
       const key = typeof note.dateStart === 'number' ? String(Math.floor(note.dateStart / 100) * 100) : 'no-date';
       const label = key === 'no-date' ? 'Без даты' : `${key}-е гг.`;
       ensure(key, label, '#888').notes.push(note);
@@ -71,7 +87,10 @@ export function renderTreePanel() {
   const container = document.getElementById('tree-panel');
   container.innerHTML = '';
 
+  const isSearching = store.searchQuery.trim() !== '';
+
   for (const group of buildGroups()) {
+    if (isSearching && group.notes.length === 0) continue;
     const groupEl = document.createElement('div');
     groupEl.className = 'tree-group';
     if (collapsedGroups.has(group.key)) groupEl.classList.add('collapsed');
@@ -83,9 +102,16 @@ export function renderTreePanel() {
     caret.className = 'caret';
     caret.textContent = '▾';
 
-    const swatch = document.createElement('span');
-    swatch.className = 'tree-group-swatch';
-    swatch.style.background = group.color;
+    let swatch;
+    if (group.icon) {
+      swatch = document.createElement('span');
+      swatch.className = 'tree-group-icon';
+      swatch.textContent = group.icon;
+    } else {
+      swatch = document.createElement('span');
+      swatch.className = 'tree-group-swatch';
+      swatch.style.background = group.color;
+    }
 
     const label = document.createElement('span');
     label.textContent = group.label;

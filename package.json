@@ -5,12 +5,14 @@
   "main": "main.js",
   "private": true,
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "vitest run"
   },
   "dependencies": {
     "three": "^0.160.0"
   },
   "devDependencies": {
-    "electron": "^30.0.0"
+    "electron": "^30.0.0",
+    "vitest": "^5.0.1"
   }
 }

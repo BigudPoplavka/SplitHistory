@@ -3,7 +3,8 @@
     { "id": "map", "name": "Карта", "kind": "map", "order": 0, "color": "#e0645a", "visible": true, "opacity": 1 },
     { "id": "people", "name": "Люди", "kind": "notes", "order": 1, "color": "#f2f2f2", "visible": true, "opacity": 0.85 },
     { "id": "events", "name": "События", "kind": "notes", "order": 2, "color": "#f2f2f2", "visible": true, "opacity": 0.85 },
-    { "id": "ideas", "name": "Идеи", "kind": "notes", "order": 3, "color": "#8ec9ff", "visible": true, "opacity": 0.85 }
+    { "id": "ideas", "name": "Идеи", "kind": "notes", "order": 3, "color": "#8ec9ff", "visible": true, "opacity": 0.85 },
+    { "id": "sources", "name": "Источники", "kind": "notes", "order": 4, "color": "#c9a15a", "visible": true, "opacity": 0.85 }
   ],
   "notes": [
     {
@@ -70,6 +71,7 @@
       "dateStart": 1643,
       "dateEnd": 1727,
       "geo": { "lat": 52.2, "lng": 0.12 },
+      "tags": ["физика", "механика", "астрономия"],
       "links": [
         { "target": "idea-gravity", "type": "сформулировал" },
         { "target": "idea-calculus", "type": "разработал" },
@@ -78,7 +80,9 @@
         { "target": "event-plague-years", "type": "участвовал" },
         { "target": "person-leibniz", "type": "соперничал" },
         { "target": "person-galileo", "type": "опирался на идеи" },
-        { "target": "place-woolsthorpe", "type": "родился в" }
+        { "target": "place-woolsthorpe", "type": "родился в" },
+        { "target": "source-westfall", "type": "упоминание" },
+        { "target": "source-britannica-newton", "type": "упоминание" }
       ]
     },
     {
@@ -90,6 +94,7 @@
       "dateStart": 1646,
       "dateEnd": 1716,
       "geo": { "lat": 51.34, "lng": 12.37 },
+      "tags": ["математика", "философия"],
       "links": [
         { "target": "idea-calculus", "type": "разработал" }
       ]
@@ -154,6 +159,7 @@
       "dateStart": 1687,
       "dateEnd": null,
       "geo": null,
+      "tags": ["физика"],
       "links": [
         { "target": "person-newton", "type": "автор" }
       ]
@@ -167,10 +173,103 @@
       "dateStart": 1670,
       "dateEnd": 1685,
       "geo": null,
+      "tags": ["математика"],
       "links": [
         { "target": "person-newton", "type": "соавтор" },
         { "target": "person-leibniz", "type": "соавтор" }
       ]
+    },
+    {
+      "id": "period-scientific-revolution",
+      "layerId": "ideas",
+      "title": "Научная революция",
+      "type": "idea",
+      "content": "Период коренного пересмотра представлений о природе — от Коперника до Ньютона.",
+      "dateStart": 1543,
+      "dateEnd": 1687,
+      "dateApprox": true,
+      "periodLabel": "Научная революция",
+      "geo": null,
+      "tags": ["эпоха"],
+      "links": [
+        { "target": "person-newton", "type": "завершил" },
+        { "target": "person-galileo", "type": "участник" }
+      ]
+    },
+    {
+      "id": "source-westfall",
+      "layerId": "sources",
+      "title": "Westfall — Never at Rest (1980)",
+      "type": "source",
+      "content": "Академическая биография Ньютона, наиболее полная научная биография на английском языке.",
+      "dateStart": 1980,
+      "dateEnd": null,
+      "geo": null,
+      "tags": ["биография"],
+      "citation": {
+        "author": "Richard S. Westfall",
+        "publicationYear": 1980,
+        "publisher": "Cambridge University Press",
+        "url": "",
+        "reliability": 5
+      },
+      "links": []
+    },
+    {
+      "id": "source-britannica-newton",
+      "layerId": "sources",
+      "title": "Encyclopaedia Britannica: Isaac Newton",
+      "type": "source",
+      "content": "Статья энциклопедии со сводными биографическими данными.",
+      "dateStart": 2023,
+      "dateEnd": null,
+      "geo": null,
+      "tags": ["энциклопедия"],
+      "citation": {
+        "author": "Encyclopaedia Britannica",
+        "publicationYear": 2023,
+        "publisher": "Encyclopaedia Britannica, Inc.",
+        "url": "https://www.britannica.com/biography/Isaac-Newton",
+        "reliability": 4
+      },
+      "links": []
+    },
+    {
+      "id": "event-newton-to-london",
+      "layerId": "events",
+      "title": "Переезд Ньютона в Лондон",
+      "type": "event",
+      "content": "В 1696 году Ньютон оставляет Кембридж и становится смотрителем Монетного двора в Лондоне.",
+      "dateStart": 1696,
+      "dateEnd": null,
+      "geo": null,
+      "route": [
+        { "lat": 52.2, "lng": 0.12 },
+        { "lat": 51.5, "lng": -0.12 }
+      ],
+      "tags": [],
+      "links": [
+        { "target": "person-newton", "type": "участвовал" }
+      ]
+    },
+    {
+      "id": "region-lincolnshire",
+      "layerId": "map",
+      "title": "Линкольншир",
+      "type": "artifact",
+      "content": "Графство на востоке Англии, где расположен Вулсторп-Мэнор.",
+      "dateStart": null,
+      "dateEnd": null,
+      "geo": null,
+      "region": [
+        [53.7, -0.75],
+        [53.65, 0.2],
+        [52.85, 0.35],
+        [52.7, -0.6],
+        [53.1, -0.85]
+      ],
+      "tags": [],
+      "links": []
     }
   ]
 }

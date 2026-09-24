@@ -1,4 +1,4 @@
-import { store, init, subscribe, getNote, setSelection, setViewMode, deleteNote, saveVault, saveVaultAs, openVault } from './store.js';
+import { store, init, subscribe, getNote, setSelection, setViewMode, deleteNote, addNote, saveVault, saveVaultAs, openVault } from './store.js';
 import { initScene, syncScene } from './scene.js';
 import { openNoteWindow, renderNoteWindows } from './ui/noteWindows.js';
 import { initLayerModal } from './ui/layerModal.js';
@@ -8,6 +8,10 @@ import { renderInfoPanel } from './ui/infoPanel.js';
 import { initTimeline, renderTimeline } from './ui/timeline.js';
 import { renderMiniGraph } from './ui/miniGraph.js';
 import { initLayer2D, renderLayer2D } from './ui/layer2d.js';
+import { exportToGraphML } from './export/graphml.js';
+import { exportToGeoJSON } from './export/geojson.js';
+import { exportToTimelineCSV } from './export/csv.js';
+import { parseBibTeX, bibEntryToNotePartial } from './import/bibtex.js';
 
 let toastTimeout = null;
 
@@ -71,6 +75,41 @@ async function doOpen() {
   }
 }
 
+const EXPORTERS = {
+  graphml: { fn: exportToGraphML, defaultName: 'splithistory.graphml' },
+  geojson: { fn: exportToGeoJSON, defaultName: 'splithistory.geojson' },
+  csv: { fn: exportToTimelineCSV, defaultName: 'splithistory-timeline.csv' }
+};
+
+async function doExport(kind) {
+  const exporter = EXPORTERS[kind];
+  if (!exporter) return;
+  try {
+    const content = exporter.fn(store.data);
+    const filePath = await window.vaultAPI.exportFile(exporter.defaultName, content);
+    if (filePath) showToast(`Экспортировано: ${filePath}`);
+  } catch (err) {
+    showToast(`Ошибка экспорта: ${err.message}`);
+  }
+}
+
+async function doImportBibTeX() {
+  try {
+    const text = await window.vaultAPI.importBibTeX();
+    if (!text) return;
+    const entries = parseBibTeX(text);
+    if (entries.length === 0) {
+      showToast('В файле не найдено ни одной записи BibTeX');
+      return;
+    }
+    const layerId = store.selection.layerId || store.data.layers.find((l) => l.kind !== 'map')?.id;
+    for (const entry of entries) addNote(bibEntryToNotePartial(entry, layerId));
+    showToast(`Импортировано источников: ${entries.length}`);
+  } catch (err) {
+    showToast(`Ошибка импорта: ${err.message}`);
+  }
+}
+
 async function bootstrap() {
   await init();
 
@@ -103,6 +142,8 @@ async function bootstrap() {
   window.vaultAPI.onMenuSave(doSave);
   window.vaultAPI.onMenuSaveAs(doSaveAs);
   window.vaultAPI.onMenuOpen(doOpen);
+  window.vaultAPI.onMenuExport((_event, kind) => doExport(kind));
+  window.vaultAPI.onMenuImportBibtex(doImportBibTeX);
 
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {

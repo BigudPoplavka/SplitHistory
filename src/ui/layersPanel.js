@@ -22,9 +22,16 @@ export function renderLayersPanel() {
     eyeBtn.title = layer.visible ? 'Скрыть слой' : 'Показать слой';
     eyeBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleLayerVisibility(layer.id); });
 
-    const swatch = document.createElement('span');
-    swatch.className = 'layer-swatch';
-    swatch.style.background = layer.color || '#ffffff';
+    let swatch;
+    if (layer.icon) {
+      swatch = document.createElement('span');
+      swatch.className = 'layer-icon';
+      swatch.textContent = layer.icon;
+    } else {
+      swatch = document.createElement('span');
+      swatch.className = 'layer-swatch';
+      swatch.style.background = layer.color || '#ffffff';
+    }
 
     const name = document.createElement('span');
     name.className = 'layer-name';

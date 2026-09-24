@@ -5,6 +5,9 @@ import { resolveWikiLinks } from './utils.js';
 const TIMELINE_MIN = -1000;
 const CURRENT_YEAR = new Date().getFullYear();
 
+const HISTORY_MAX_ENTRIES = 20;
+const HISTORY_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
 function freshTimeline() {
   return { min: TIMELINE_MIN, max: CURRENT_YEAR, from: TIMELINE_MIN, to: CURRENT_YEAR, viewMin: TIMELINE_MIN, viewMax: CURRENT_YEAR };
 }
@@ -15,7 +18,8 @@ export const store = {
   selection: { noteId: null, layerId: null },
   timeline: freshTimeline(),
   groupBy: 'layer',
-  viewMode: '3d'
+  viewMode: '3d',
+  searchQuery: ''
 };
 
 const listeners = new Set();
@@ -33,9 +37,35 @@ function genId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/** Заполняет отсутствующие поля дефолтами — нужно для заметок, сохранённых старыми версиями схемы. */
+function normalizeNote(note) {
+  note.dateApprox = note.dateApprox ?? false;
+  note.periodLabel = note.periodLabel || '';
+  note.route = note.route || null;
+  note.region = note.region || null;
+  note.tags = note.tags || [];
+  note.links = note.links || [];
+  note.citation = note.citation || null;
+  note.attachments = note.attachments || [];
+  note.history = note.history || [];
+  note.photo = note.photo || null;
+  return note;
+}
+
+function normalizeLayer(layer) {
+  layer.icon = layer.icon || null;
+  return layer;
+}
+
+export function normalizeData(data) {
+  data.notes.forEach(normalizeNote);
+  data.layers.forEach(normalizeLayer);
+  return data;
+}
+
 export async function init() {
   const result = await window.vaultAPI.load();
-  store.data = result.data;
+  store.data = normalizeData(result.data);
   store.filePath = result.filePath;
   store.timeline = freshTimeline();
   notify();
@@ -70,19 +100,97 @@ export function addNote(partial) {
     content: partial.content || '',
     dateStart: partial.dateStart ?? null,
     dateEnd: partial.dateEnd ?? null,
+    dateApprox: partial.dateApprox ?? false,
+    periodLabel: partial.periodLabel || '',
     geo: partial.geo || null,
+    route: partial.route || null,
+    region: partial.region || null,
     tags: partial.tags || [],
-    links: partial.links || []
+    links: partial.links || [],
+    citation: partial.citation || null,
+    attachments: partial.attachments || [],
+    photo: partial.photo || null,
+    history: []
   };
   store.data.notes.push(note);
   notify();
   return note;
 }
 
+/**
+ * Перед изменением заголовка/текста сохраняет предыдущую версию в note.history — не чаще, чем
+ * раз в HISTORY_MIN_INTERVAL_MS, и не больше HISTORY_MAX_ENTRIES версий (кольцевой буфер).
+ */
+function maybeSnapshotHistory(note, patch) {
+  const touchesContent = 'title' in patch || 'content' in patch;
+  if (!touchesContent) return;
+  const changed = (('title' in patch) && patch.title !== note.title)
+    || (('content' in patch) && patch.content !== note.content);
+  if (!changed) return;
+
+  const last = note.history[note.history.length - 1];
+  if (last && Date.now() - last.timestamp < HISTORY_MIN_INTERVAL_MS) return;
+
+  note.history.push({ timestamp: Date.now(), title: note.title, content: note.content });
+  if (note.history.length > HISTORY_MAX_ENTRIES) note.history.shift();
+}
+
 export function updateNote(id, patch) {
   const note = getNote(id);
   if (!note) return;
+  maybeSnapshotHistory(note, patch);
   Object.assign(note, patch);
+  notify();
+}
+
+/** Откатывает заметку к сохранённой версии из истории (сама текущая версия перед этим тоже сохраняется). */
+export function restoreNoteVersion(id, historyIndex) {
+  const note = getNote(id);
+  if (!note) return;
+  const version = note.history[historyIndex];
+  if (!version) return;
+  note.history.push({ timestamp: Date.now(), title: note.title, content: note.content });
+  if (note.history.length > HISTORY_MAX_ENTRIES) note.history.shift();
+  note.title = version.title;
+  note.content = version.content;
+  notify();
+}
+
+export function addAttachment(noteId, attachment) {
+  const note = getNote(noteId);
+  if (!note) return;
+  note.attachments.push(attachment);
+  notify();
+}
+
+export function removeAttachment(noteId, attachmentId) {
+  const note = getNote(noteId);
+  if (!note) return;
+  note.attachments = note.attachments.filter((a) => a.id !== attachmentId);
+  notify();
+}
+
+/** 'confirmed' — ≥2 независимых источника среди ссылок заметки, 'partial' — 1, иначе 'unconfirmed'. */
+export function getCitationCoverage(note) {
+  const sources = note.links
+    .map((l) => getNote(l.target))
+    .filter((n) => n && n.type === 'source');
+  const distinct = new Set(sources.map((s) => s.citation?.author || s.citation?.publisher || s.id));
+  if (distinct.size >= 2) return 'confirmed';
+  if (distinct.size === 1) return 'partial';
+  return 'unconfirmed';
+}
+
+/** Сколько не-источниковых заметок слоя не подтверждены ни одним источником. */
+export function getUncitedCount(layerId) {
+  return notesInLayer(layerId)
+    .filter((n) => n.type !== 'source')
+    .filter((n) => getCitationCoverage(n) === 'unconfirmed')
+    .length;
+}
+
+export function setSearchQuery(value) {
+  store.searchQuery = value;
   notify();
 }
 
@@ -122,6 +230,7 @@ export function addLayer(partial) {
     kind: 'notes',
     order: maxOrder + 1,
     color: partial.color || '#ffffff',
+    icon: partial.icon || null,
     visible: true,
     opacity: 0.85
   };
@@ -236,7 +345,7 @@ export async function saveVaultAs() {
 export async function openVault() {
   const result = await window.vaultAPI.open();
   if (!result) return false;
-  store.data = result.data;
+  store.data = normalizeData(result.data);
   store.filePath = result.filePath;
   store.timeline = freshTimeline();
   store.selection = { noteId: null, layerId: null };

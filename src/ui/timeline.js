@@ -57,4 +57,30 @@ export function renderTimeline() {
     tick.textContent = formatYear(Math.round(value));
     ticksEl.appendChild(tick);
   }
+
+  renderPeriodBars(viewMin, viewMax);
+}
+
+/** Именованные периоды/эпохи (заметки с periodLabel и обеими датами) — полосой поверх шкалы. */
+function renderPeriodBars(viewMin, viewMax) {
+  const periodsEl = document.getElementById('timeline-periods');
+  periodsEl.innerHTML = '';
+  const span = Math.max(1, viewMax - viewMin);
+
+  const periods = store.data.notes.filter((n) => n.periodLabel && typeof n.dateStart === 'number');
+  periods.forEach((note, i) => {
+    const start = note.dateStart;
+    const end = typeof note.dateEnd === 'number' ? note.dateEnd : note.dateStart;
+    if (end < viewMin || start > viewMax) return;
+    const left = Math.max(0, ((start - viewMin) / span) * 100);
+    const right = Math.min(100, ((end - viewMin) / span) * 100);
+    const bar = document.createElement('div');
+    bar.className = 'timeline-period-bar';
+    bar.style.left = `${left}%`;
+    bar.style.width = `${Math.max(1, right - left)}%`;
+    bar.style.top = `${(i % 3) * 12}px`;
+    bar.title = `${note.periodLabel}: ${formatYear(start)} — ${formatYear(end)}`;
+    bar.textContent = note.periodLabel;
+    periodsEl.appendChild(bar);
+  });
 }

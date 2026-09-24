@@ -1,6 +1,7 @@
 import { store, getLayer, getNote, notesInLayer, isNoteInTimeline, setSelection } from '../store.js';
-import { drawWorldOutline } from '../worldMap.js';
+import { drawWorldOutline, lngLatToUnit } from '../worldMap.js';
 import { computeLayerLayoutPixels } from '../layout2d.js';
+import { matchesQuery } from '../search.js';
 
 let canvas, ctx;
 let nodePositions = new Map();
@@ -71,8 +72,39 @@ export function renderLayer2D() {
   }
 
   const layer = getLayer(layerId);
-  const notes = notesInLayer(layerId).filter(isNoteInTimeline);
+  const notes = notesInLayer(layerId)
+    .filter(isNoteInTimeline)
+    .filter((n) => matchesQuery(n, store.searchQuery));
   nodePositions = computeLayerLayoutPixels(notes, width, height);
+
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = (layer && layer.color) || '#ffffff';
+  ctx.globalAlpha = 0.8;
+  for (const note of notes) {
+    if (note.route && note.route.length > 1) {
+      ctx.beginPath();
+      note.route.forEach((p, i) => {
+        const u = lngLatToUnit(p.lat, p.lng);
+        const x = u.x * width;
+        const y = u.y * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    } else if (note.region && note.region.length > 1) {
+      ctx.beginPath();
+      note.region.forEach(([lat, lng], i) => {
+        const u = lngLatToUnit(lat, lng);
+        const x = u.x * width;
+        const y = u.y * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
 
   const idSet = new Set(notes.map((n) => n.id));
   const seenEdge = new Set();
