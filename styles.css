@@ -904,13 +904,22 @@ button:hover { filter: brightness(1.15); }
 }
 .nw-preview .md-empty { color: var(--text-dim); font-style: italic; }
 
-.md-heading { margin: 0.6em 0 0.3em; line-height: 1.25; }
-.md-h1 { color: #e0645a; font-size: 1.5em; }
-.md-h2 { color: #e8935a; font-size: 1.32em; }
-.md-h3 { color: #e0c14a; font-size: 1.18em; }
-.md-h4 { color: #a680e0; font-size: 1.08em; }
-.md-h5 { color: #6fa8dc; font-size: 1em; }
-.md-h6 { color: #6fd1a8; font-size: 0.95em; }
+.md-h1 { color: #e0645a; }
+.md-h2 { color: #e8935a; }
+.md-h3 { color: #e0c14a; }
+.md-h4 { color: #a680e0; }
+.md-h5 { color: #6fa8dc; }
+.md-h6 { color: #6fd1a8; }
+
+/* Размер растёт по уровню только в самом превью; в панели "Содержание" все пункты — единого
+   размера, равного основному тексту (.nw-outline-item уже задаёт font-size: 12px). */
+.nw-preview .md-heading { margin: 0.6em 0 0.3em; line-height: 1.25; }
+.nw-preview .md-h1 { font-size: 1.5em; }
+.nw-preview .md-h2 { font-size: 1.32em; }
+.nw-preview .md-h3 { font-size: 1.18em; }
+.nw-preview .md-h4 { font-size: 1.08em; }
+.nw-preview .md-h5 { font-size: 1em; }
+.nw-preview .md-h6 { font-size: 0.95em; }
 
 .md-wikilink { cursor: pointer; border-bottom: 1px dashed currentColor; }
 .md-wikilink.resolved { color: var(--accent-blue); }

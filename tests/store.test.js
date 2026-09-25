@@ -2,12 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   store, addNote, updateNote, restoreNoteVersion, deleteNote,
   isNoteInTimeline, getLayerStats, getCitationCoverage, getUncitedCount,
-  addLayer, setTimeline, setSearchQuery, normalizeData, addAttachment
+  addLayer, setTimeline, setSearchQuery, normalizeData, addAttachment, touchRecentNote
 } from '../src/store.js';
 
 beforeEach(() => {
   store.data = { layers: [], notes: [] };
   store.selection = { noteId: null, layerId: null };
+  store.recentNoteIds = [];
 });
 
 describe('addNote', () => {
@@ -126,6 +127,32 @@ describe('deleteNote', () => {
     deleteNote(a.id);
     expect(store.data.notes.find((n) => n.id === a.id)).toBeUndefined();
     expect(b.links).toEqual([]);
+  });
+});
+
+describe('touchRecentNote', () => {
+  it('adds a note to the front of the recent list', () => {
+    touchRecentNote('a');
+    touchRecentNote('b');
+    expect(store.recentNoteIds).toEqual(['b', 'a']);
+  });
+
+  it('moves an already-present id back to the front instead of duplicating it', () => {
+    touchRecentNote('a');
+    touchRecentNote('b');
+    touchRecentNote('a');
+    expect(store.recentNoteIds).toEqual(['a', 'b']);
+  });
+
+  it('caps the list at 30 entries', () => {
+    for (let i = 0; i < 35; i++) touchRecentNote(`n${i}`);
+    expect(store.recentNoteIds).toHaveLength(30);
+    expect(store.recentNoteIds[0]).toBe('n34');
+  });
+
+  it('addNote touches the new note as recent', () => {
+    const note = addNote({ layerId: 'l1', title: 'A' });
+    expect(store.recentNoteIds[0]).toBe(note.id);
   });
 });
 

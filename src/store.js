@@ -19,10 +19,15 @@ export const store = {
   timeline: freshTimeline(),
   groupBy: 'layer',
   viewMode: '3d',
-  searchQuery: ''
+  searchQuery: '',
+  /** Недавно открытые/созданные заметки, самые свежие первыми — подсказки для [[ ]] и т.п. Не сохраняется в файл. */
+  recentNoteIds: []
 };
 
 const listeners = new Set();
+const AUTOSAVE_DELAY_MS = 1500;
+let autosaveTimer = null;
+let hasLoadedVault = false;
 
 export function subscribe(fn) {
   listeners.add(fn);
@@ -31,6 +36,21 @@ export function subscribe(fn) {
 
 function notify() {
   for (const fn of listeners) fn();
+  scheduleAutosave();
+}
+
+/**
+ * Автосохранение хранилища на диск через некоторое время бездействия — правки (в т.ч. слоёв,
+ * тегов, дат) раньше терялись, если пользователь забывал нажать Ctrl+S перед закрытием.
+ */
+function scheduleAutosave() {
+  if (!hasLoadedVault || typeof window === 'undefined' || !window.vaultAPI) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    window.vaultAPI.save(store.data)
+      .then((result) => { if (result) store.filePath = result.filePath; })
+      .catch(() => { /* тихо игнорируем — есть ручное сохранение как запасной вариант */ });
+  }, AUTOSAVE_DELAY_MS);
 }
 
 function genId(prefix) {
@@ -68,6 +88,7 @@ export async function init() {
   store.data = normalizeData(result.data);
   store.filePath = result.filePath;
   store.timeline = freshTimeline();
+  hasLoadedVault = true;
   notify();
 }
 
@@ -113,8 +134,14 @@ export function addNote(partial) {
     history: []
   };
   store.data.notes.push(note);
+  touchRecentNote(note.id);
   notify();
   return note;
+}
+
+/** Отмечает заметку как недавно использованную (создание/открытие) — буфер на 30 штук, свежие впереди. */
+export function touchRecentNote(noteId) {
+  store.recentNoteIds = [noteId, ...store.recentNoteIds.filter((id) => id !== noteId)].slice(0, 30);
 }
 
 /**
@@ -349,6 +376,8 @@ export async function openVault() {
   store.filePath = result.filePath;
   store.timeline = freshTimeline();
   store.selection = { noteId: null, layerId: null };
+  store.recentNoteIds = [];
+  hasLoadedVault = true;
   notify();
   return true;
 }

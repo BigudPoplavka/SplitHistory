@@ -1,10 +1,14 @@
 import {
   store, getNote, updateNote, deleteNote, addNote, syncLinksFromContent, setSelection,
-  restoreNoteVersion, addAttachment, removeAttachment
+  restoreNoteVersion, addAttachment, removeAttachment, touchRecentNote
 } from '../store.js';
 import { TYPE_LABELS, parseTagsInput, resolveWikiLinks, extractHeadings, renderMarkdownToHtml } from '../utils.js';
 import { findSimilarNotes } from '../similarity.js';
+import { rankNotesByTitle } from '../search.js';
 import { showContextMenu } from './contextMenu.js';
+
+const WIKI_SUGGEST_RECENT_LIMIT = 30;
+const WIKI_SUGGEST_RANKED_LIMIT = 10;
 
 const windows = new Map();
 let zCounter = 20;
@@ -38,6 +42,7 @@ function nextPosition() {
 export function openNoteWindow(noteId) {
   const note = getNote(noteId);
   if (!note) return;
+  touchRecentNote(noteId);
   let win = windows.get(noteId);
   if (!win) {
     win = createWindowDom(note);
@@ -483,10 +488,25 @@ function handleWikiAutocomplete(win) {
   const match = /\[\[([^\]]*)$/.exec(uptoCaret);
   if (!match) { box.classList.add('hidden'); return; }
 
-  const query = match[1].toLowerCase();
-  const candidates = store.data.notes
-    .filter((n) => n.id !== win.noteId && n.title.toLowerCase().includes(query))
-    .slice(0, 8);
+  const query = match[1].trim();
+  let candidates;
+  if (query === '') {
+    // Пока ничего не введено после [[ — показываем недавно открытые/созданные заметки.
+    candidates = store.recentNoteIds
+      .map((id) => getNote(id))
+      .filter((n) => n && n.id !== win.noteId)
+      .slice(0, WIKI_SUGGEST_RECENT_LIMIT);
+    if (candidates.length === 0) {
+      candidates = store.data.notes.filter((n) => n.id !== win.noteId).slice(0, WIKI_SUGGEST_RECENT_LIMIT);
+    }
+  } else {
+    // По мере набора — сужаем и сортируем по релевантности названия, как в поиске по хранилищу.
+    candidates = rankNotesByTitle(
+      store.data.notes.filter((n) => n.id !== win.noteId),
+      query,
+      WIKI_SUGGEST_RANKED_LIMIT
+    );
+  }
   if (candidates.length === 0) { box.classList.add('hidden'); return; }
 
   box.innerHTML = '';
