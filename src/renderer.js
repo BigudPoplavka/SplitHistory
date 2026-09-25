@@ -8,6 +8,7 @@ import { renderInfoPanel } from './ui/infoPanel.js';
 import { initTimeline, renderTimeline } from './ui/timeline.js';
 import { renderMiniGraph } from './ui/miniGraph.js';
 import { initLayer2D, renderLayer2D } from './ui/layer2d.js';
+import { initPanelResize } from './ui/panelResize.js';
 import { exportToGraphML } from './export/graphml.js';
 import { exportToGeoJSON } from './export/geojson.js';
 import { exportToTimelineCSV } from './export/csv.js';
@@ -127,6 +128,7 @@ async function bootstrap() {
   initLayersPanel();
   initTreePanel();
   initTimeline();
+  initPanelResize();
 
   for (const btn of document.querySelectorAll('#view-mode-toggle button')) {
     btn.addEventListener('click', () => setViewMode(btn.dataset.mode));

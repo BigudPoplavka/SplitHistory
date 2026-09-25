@@ -15,14 +15,17 @@ const layerPlaneMeshes = new Map();
 const layerBorderLines = new Map();
 const layerLabelObjects = new Map();
 const noteMeshes = new Map();
+const noteLabelObjects = new Map();
 const noteGeometryLines = new Map();
 
 let edgeList = [];
 let edgesDefaultObj = null;
 let edgesHighlightObj = null;
-let selectedNoteLabel = null;
 
 let lastStructureKey = null;
+
+/** Подписи заметок появляются, только когда камера приближена сильнее этого порога (как в Obsidian). */
+const NOTE_LABEL_ZOOM_THRESHOLD = 1.5;
 
 function computeStructureKey(data) {
   const layersKey = data.layers.map((l) => `${l.id}:${l.order}:${l.kind}:${l.color}:${l.name}`).join('|');
@@ -39,7 +42,7 @@ export function initScene(containerEl, callbacks) {
   container = containerEl;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1c1d20);
+  // Фон сцены оставляем прозрачным — под канвасом видна точечная сетка из CSS (#viewport).
   scene.fog = new THREE.Fog(0x1c1d20, 40, 90);
 
   const aspect = container.clientWidth / Math.max(1, container.clientHeight);
@@ -50,7 +53,8 @@ export function initScene(containerEl, callbacks) {
   camera.position.set(24, 20, 24);
   camera.lookAt(0, 5, 0);
 
-  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power' });
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power', alpha: true });
+  renderer.setClearColor(0x000000, 0);
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   container.appendChild(renderer.domElement);
@@ -70,17 +74,11 @@ export function initScene(containerEl, callbacks) {
   controls.enableZoom = true;
   controls.minZoom = 0.4;
   controls.maxZoom = 3;
-  controls.addEventListener('change', requestRender);
+  controls.addEventListener('change', () => { applyZoomDependentVisuals(); requestRender(); });
   controls.update();
 
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
-
-  const labelDiv = document.createElement('div');
-  labelDiv.className = 'note-label';
-  selectedNoteLabel = new CSS2DObject(labelDiv);
-  selectedNoteLabel.visible = false;
-  scene.add(selectedNoteLabel);
 
   renderer.domElement.addEventListener('click', (event) => onClick(event, callbacks));
   renderer.domElement.addEventListener('dblclick', (event) => onDblClick(event, callbacks));
@@ -161,11 +159,16 @@ function clearStructure() {
   }
   for (const mesh of noteMeshes.values()) disposeMesh(mesh);
   for (const line of noteGeometryLines.values()) disposeMesh(line);
+  for (const label of noteLabelObjects.values()) {
+    scene.remove(label);
+    label.element.remove();
+  }
   layerPlaneMeshes.clear();
   layerBorderLines.clear();
   layerLabelObjects.clear();
   noteMeshes.clear();
   noteGeometryLines.clear();
+  noteLabelObjects.clear();
 }
 
 function buildLayerPlane(layer) {
@@ -232,6 +235,15 @@ function buildNoteMesh(note, position) {
   mesh.userData.layerId = note.layerId;
   scene.add(mesh);
   noteMeshes.set(note.id, mesh);
+
+  const labelDiv = document.createElement('div');
+  labelDiv.className = 'note-label';
+  labelDiv.textContent = note.title;
+  const label = new CSS2DObject(labelDiv);
+  label.position.set(position.x, y + radius + 0.35, position.z);
+  label.visible = false;
+  scene.add(label);
+  noteLabelObjects.set(note.id, label);
 }
 
 /** Рисует маршрут (ломаная) или регион (замкнутый контур) заметки поверх её слоя. */
@@ -346,20 +358,26 @@ function updateHighlightVisuals() {
   for (const [layerId, label] of layerLabelObjects) {
     label.element.classList.toggle('active', layerId === store.selection.layerId);
   }
-  for (const [noteId, mesh] of noteMeshes) {
-    const isSelected = noteId === store.selection.noteId;
-    mesh.scale.setScalar(isSelected ? 1.6 : 1);
+  for (const note of store.data.notes) {
+    const label = noteLabelObjects.get(note.id);
+    if (label) label.element.textContent = note.title;
   }
+}
 
-  const note = store.selection.noteId ? store.data.notes.find((n) => n.id === store.selection.noteId) : null;
-  if (note && noteMeshes.has(note.id)) {
-    const mesh = noteMeshes.get(note.id);
-    selectedNoteLabel.element.textContent = note.title;
-    selectedNoteLabel.position.copy(mesh.position);
-    selectedNoteLabel.position.y += 0.5;
-    selectedNoteLabel.visible = mesh.visible;
-  } else {
-    selectedNoteLabel.visible = false;
+/**
+ * Точки заметок держат примерно постоянный размер на экране независимо от зума (мировой
+ * масштаб уменьшается по мере приближения камеры), а подписи появляются только при достаточном
+ * приближении — иначе при полном охвате сцены все 143 заметки подписывались бы разом.
+ */
+function applyZoomDependentVisuals() {
+  if (!camera) return;
+  const zoomScale = 1 / camera.zoom;
+  const selectedId = store.selection.noteId;
+  for (const [noteId, mesh] of noteMeshes) {
+    const isSelected = noteId === selectedId;
+    mesh.scale.setScalar((isSelected ? 1.6 : 1) * zoomScale);
+    const label = noteLabelObjects.get(noteId);
+    if (label) label.visible = mesh.visible && (isSelected || camera.zoom >= NOTE_LABEL_ZOOM_THRESHOLD);
   }
 }
 
@@ -373,5 +391,6 @@ export function syncScene() {
   applyFilters();
   rebuildEdges();
   updateHighlightVisuals();
+  applyZoomDependentVisuals();
   requestRender();
 }
