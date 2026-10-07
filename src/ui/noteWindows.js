@@ -1,11 +1,13 @@
 import {
-  store, getNote, updateNote, deleteNote, addNote, syncLinksFromContent, setSelection,
+  store, getNote, getLayer, updateNote, deleteNote, addNote, syncLinksFromContent, setSelection,
   restoreNoteVersion, addAttachment, removeAttachment, touchRecentNote
 } from '../store.js';
 import { TYPE_LABELS, parseTagsInput, resolveWikiLinks, extractHeadings, renderMarkdownToHtml } from '../utils.js';
 import { findSimilarNotes } from '../similarity.js';
 import { rankNotesByTitle } from '../search.js';
 import { showContextMenu } from './contextMenu.js';
+import { renderOpenNotesBar } from './openNotesBar.js';
+import { startPicking } from './locationPicker.js';
 
 const WIKI_SUGGEST_RECENT_LIMIT = 30;
 const WIKI_SUGGEST_RANKED_LIMIT = 10;
@@ -51,7 +53,12 @@ export function openNoteWindow(noteId) {
   win.minimized = false;
   win.el.classList.remove('hidden');
   focusWindow(noteId);
-  renderDock();
+  renderOpenNotesBar();
+}
+
+/** Id всех сейчас открытых (в т.ч. свёрнутых) окон заметок — читает узкая панель слева. */
+export function getOpenNoteIds() {
+  return [...windows.keys()];
 }
 
 export function createNoteWindow(layerId, templatePartial) {
@@ -70,7 +77,7 @@ export function renderNoteWindows() {
     if (!note) { closeWindow(noteId); continue; }
     syncWindowChrome(win, note);
   }
-  renderDock();
+  renderOpenNotesBar();
 }
 
 function closeWindow(noteId) {
@@ -78,7 +85,7 @@ function closeWindow(noteId) {
   if (!win) return;
   win.el.remove();
   windows.delete(noteId);
-  renderDock();
+  renderOpenNotesBar();
 }
 
 function minimizeWindow(noteId) {
@@ -86,7 +93,7 @@ function minimizeWindow(noteId) {
   if (!win) return;
   win.minimized = true;
   win.el.classList.add('hidden');
-  renderDock();
+  renderOpenNotesBar();
 }
 
 function focusWindow(noteId) {
@@ -94,32 +101,6 @@ function focusWindow(noteId) {
   if (!win) return;
   zCounter += 1;
   win.el.style.zIndex = String(zCounter);
-}
-
-function renderDock() {
-  const dock = document.getElementById('note-tabs-dock');
-  if (!dock) return;
-  dock.innerHTML = '';
-  if (windows.size === 0) { dock.classList.add('hidden'); return; }
-  dock.classList.remove('hidden');
-  for (const [noteId, win] of windows) {
-    const note = getNote(noteId);
-    if (!note) continue;
-    const tab = document.createElement('button');
-    tab.className = 'note-tab' + (win.minimized ? ' minimized' : '');
-    tab.title = note.title || 'Без названия';
-    tab.textContent = note.title || 'Без названия';
-    tab.addEventListener('click', () => openNoteWindow(noteId));
-
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'note-tab-close';
-    closeBtn.textContent = '×';
-    closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeWindow(noteId); });
-
-    tab.appendChild(closeBtn);
-    dock.appendChild(tab);
-    win.dockBtn = tab;
-  }
 }
 
 function createWindowDom(note) {
@@ -178,6 +159,14 @@ function createWindowDom(note) {
           <div class="nw-props-grid nw-geo-point">
             <label>Широта <input class="nw-lat" type="number" step="0.01" /></label>
             <label>Долгота <input class="nw-lng" type="number" step="0.01" /></label>
+          </div>
+          <div class="nw-geo-point-actions">
+            <label>Взять место у заметки
+              <select class="nw-geo-place-select">
+                <option value="">— выбрать —</option>
+              </select>
+            </label>
+            <button class="nw-geo-pick-btn btn-secondary" type="button">📍 Указать на карте</button>
           </div>
           <label class="nw-geo-list hidden">
             <span class="nw-geo-list-label"></span>
@@ -264,6 +253,9 @@ function createWindowDom(note) {
     geoList: el.querySelector('.nw-geo-list'),
     geoListLabel: el.querySelector('.nw-geo-list-label'),
     geoPoints: el.querySelector('.nw-geo-points'),
+    geoPointActions: el.querySelector('.nw-geo-point-actions'),
+    geoPlaceSelect: el.querySelector('.nw-geo-place-select'),
+    geoPickBtn: el.querySelector('.nw-geo-pick-btn'),
     citation: el.querySelector('.nw-citation'),
     citeAuthor: el.querySelector('.nw-cite-author'),
     citeYear: el.querySelector('.nw-cite-year'),
@@ -294,7 +286,7 @@ function createWindowDom(note) {
     refs.type.appendChild(opt);
   }
 
-  const win = { noteId: note.id, el, refs, minimized: false, dockBtn: null, mode: 'edit', outlineVisible: false };
+  const win = { noteId: note.id, el, refs, minimized: false, mode: 'edit', outlineVisible: false };
 
   wireWindowEvents(win);
   makeDraggable(win);
@@ -395,6 +387,25 @@ function wireWindowEvents(win) {
 
   const commitGeoPoints = debounce(() => commitGeoPointsList(win), 400);
   refs.geoPoints.addEventListener('input', commitGeoPoints);
+
+  refs.geoPlaceSelect.addEventListener('change', () => {
+    const sourceId = refs.geoPlaceSelect.value;
+    refs.geoPlaceSelect.value = '';
+    if (!sourceId) return;
+    const source = getNote(sourceId);
+    if (!source || !source.geo) return;
+    updateNote(noteId, { geo: { ...source.geo }, route: null, region: null });
+    refs.geoKind.value = 'point';
+    syncGeoEditor(win, getNote(noteId));
+  });
+
+  refs.geoPickBtn.addEventListener('click', () => {
+    minimizeWindow(noteId);
+    startPicking(getNote(noteId)?.title, (lat, lng) => {
+      updateNote(noteId, { geo: { lat, lng }, route: null, region: null });
+      openNoteWindow(noteId);
+    });
+  });
 
   const commitCitation = debounce(() => {
     updateNote(noteId, {
@@ -601,11 +612,13 @@ function syncGeoEditor(win, note) {
   if (document.activeElement !== r.geoKind) r.geoKind.value = kind;
 
   r.geoPoint.classList.toggle('hidden', kind !== 'point');
+  r.geoPointActions.classList.toggle('hidden', kind !== 'point');
   r.geoList.classList.toggle('hidden', kind !== 'route' && kind !== 'region');
 
   if (kind === 'point') {
     setValueIfNotFocused(r.lat, note.geo ? note.geo.lat : '');
     setValueIfNotFocused(r.lng, note.geo ? note.geo.lng : '');
+    if (document.activeElement !== r.geoPlaceSelect) syncGeoPlaceOptions(r, note);
   } else if ((kind === 'route' || kind === 'region') && document.activeElement !== r.geoPoints) {
     r.geoListLabel.textContent = kind === 'route'
       ? 'Точки маршрута (широта, долгота — по одной паре на строке)'
@@ -614,6 +627,22 @@ function syncGeoEditor(win, note) {
       ? (note.route || []).map((p) => `${p.lat}, ${p.lng}`)
       : (note.region || []).map(([lat, lng]) => `${lat}, ${lng}`);
     r.geoPoints.value = points.join('\n');
+  }
+}
+
+function syncGeoPlaceOptions(r, note) {
+  const places = store.data.notes.filter((n) => n.id !== note.id && n.geo);
+  r.geoPlaceSelect.innerHTML = '';
+  const emptyOpt = document.createElement('option');
+  emptyOpt.value = '';
+  emptyOpt.textContent = '— выбрать —';
+  r.geoPlaceSelect.appendChild(emptyOpt);
+  for (const place of places) {
+    const layer = getLayer(place.layerId);
+    const opt = document.createElement('option');
+    opt.value = place.id;
+    opt.textContent = layer ? `${place.title} (${layer.name})` : place.title;
+    r.geoPlaceSelect.appendChild(opt);
   }
 }
 
@@ -810,6 +839,8 @@ function makeDraggable(win) {
   let startY = 0;
   let startLeft = 0;
   let startTop = 0;
+  let windowWidth = 0;
+  let windowHeight = 0;
 
   handle.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
@@ -819,6 +850,8 @@ function makeDraggable(win) {
     const rect = win.el.getBoundingClientRect();
     startLeft = rect.left;
     startTop = rect.top;
+    windowWidth = rect.width;
+    windowHeight = rect.height;
     handle.setPointerCapture(e.pointerId);
   });
 
@@ -826,8 +859,11 @@ function makeDraggable(win) {
     if (!dragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    win.el.style.left = `${Math.max(0, startLeft + dx)}px`;
-    win.el.style.top = `${Math.max(0, startTop + dy)}px`;
+    // Окно целиком (включая кнопки закрытия/сворачивания) не должно уходить за край экрана.
+    const maxLeft = Math.max(0, window.innerWidth - windowWidth);
+    const maxTop = Math.max(0, window.innerHeight - windowHeight);
+    win.el.style.left = `${Math.min(maxLeft, Math.max(0, startLeft + dx))}px`;
+    win.el.style.top = `${Math.min(maxTop, Math.max(0, startTop + dy))}px`;
   });
 
   const stop = (e) => {

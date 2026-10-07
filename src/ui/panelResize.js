@@ -3,6 +3,8 @@ const STORAGE_KEY_RIGHT = 'splithistory.rightPanelWidth';
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 560;
 const DEFAULT_WIDTH = 300;
+/** Ширина узкой панели открытых заметок слева от дерева — тот же #app занимает и её колонку. */
+const OPEN_NOTES_BAR_WIDTH = 44;
 
 function loadWidth(key) {
   try {
@@ -60,14 +62,14 @@ export function initPanelResize() {
   }
 
   function apply() {
-    app.style.gridTemplateColumns = `${leftWidth}px 1fr ${rightWidth}px`;
-    leftHandle.style.left = `${leftWidth - 3}px`;
+    app.style.gridTemplateColumns = `${OPEN_NOTES_BAR_WIDTH}px ${leftWidth}px 1fr ${rightWidth}px`;
+    leftHandle.style.left = `${OPEN_NOTES_BAR_WIDTH + leftWidth - 3}px`;
     rightHandle.style.right = `${rightWidth - 3}px`;
     scheduleWindowResizeEvent();
   }
 
   makeDraggable(leftHandle, (e) => {
-    leftWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
+    leftWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX - OPEN_NOTES_BAR_WIDTH));
     apply();
   }, () => saveWidth(STORAGE_KEY_LEFT, leftWidth));
 

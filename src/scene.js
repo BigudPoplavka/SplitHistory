@@ -180,6 +180,11 @@ function buildLayerPlane(layer) {
     const canvas = createMapCanvas();
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    // Анизотропная фильтрация и мип-мапы — чтобы карта оставалась чёткой при приближении камеры.
+    texture.anisotropy = renderer?.capabilities.getMaxAnisotropy() ?? 1;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
     material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.97, side: THREE.DoubleSide });
   } else {
     material = new THREE.MeshBasicMaterial({

@@ -61,9 +61,114 @@ button:hover { filter: brightness(1.15); }
 #app {
   position: relative;
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns: 44px 300px 1fr 300px;
   height: 100vh;
   width: 100vw;
+}
+
+/* ---------- Open notes bar (узкая панель открытых заметок, как в VS Code) ---------- */
+
+#open-notes-bar {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  overflow-y: auto;
+}
+
+.open-notes-group-btn {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.open-notes-group-btn:hover,
+.open-notes-group-btn.active {
+  border-color: var(--accent);
+}
+
+.open-notes-group-icon { font-size: 14px; line-height: 1; }
+
+.open-notes-group-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.open-notes-group-count {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 8px;
+  min-width: 14px;
+  text-align: center;
+}
+
+#open-notes-flyout {
+  position: fixed;
+  left: 44px;
+  z-index: 500;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.open-notes-flyout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  min-width: 180px;
+  max-width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.open-notes-flyout-item {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.open-notes-flyout-item:hover { background: var(--bg-panel-2); }
+.open-notes-flyout-item.active { background: var(--accent-dim); color: #fff; }
+
+.open-notes-flyout-label {
+  border-left: 1px solid var(--border);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  max-width: 160px;
 }
 
 .panel-resize-handle {
@@ -245,6 +350,70 @@ button:hover { filter: brightness(1.15); }
 }
 
 #layer-2d-canvas { display: block; cursor: pointer; }
+#layer-2d-canvas.picking { cursor: crosshair; }
+
+#leaflet-map-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #1a1a1a;
+}
+
+#leaflet-map-container.picking .leaflet-container { cursor: crosshair; }
+
+.leaflet-container {
+  background: #1a1a1a;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.map-tiles-dark {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.6);
+}
+
+.leaflet-control-zoom a {
+  background: var(--bg-panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--bg-elevated) !important; }
+
+.leaflet-control-attribution {
+  background: rgba(42, 44, 48, 0.8) !important;
+  color: var(--text-dim) !important;
+  display: none;
+}
+.leaflet-control-attribution a { 
+  color: var(--accent-blue) !important; 
+  display: none;
+}
+
+.map-note-label {
+  background: rgba(42, 44, 48, 0.9) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  font-size: 11px !important;
+  padding: 1px 6px !important;
+  box-shadow: none !important;
+}
+.map-note-label::before { display: none !important; }
+
+#location-pick-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 10px 8px 14px;
+  font-size: 12px;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
 
 #view-mode-toggle {
   top: 16px;
@@ -265,42 +434,6 @@ button:hover { filter: brightness(1.15); }
 
 .view-toggle button:hover { color: var(--text); filter: none; }
 .view-toggle button.active { background: var(--accent); color: #fff; }
-
-#note-tabs-dock {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 220px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-height: 34px;
-  overflow: hidden;
-}
-
-.note-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(42, 44, 48, 0.92);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 5px 8px;
-  font-size: 12px;
-  max-width: 160px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.note-tab.minimized { opacity: 0.55; }
-
-.note-tab-close {
-  opacity: 0.6;
-  padding: 0 2px;
-}
-
-.note-tab-close:hover { opacity: 1; color: var(--accent); }
 
 .floating-panel {
   position: absolute;
@@ -850,6 +983,26 @@ button:hover { filter: brightness(1.15); }
 }
 
 .nw-checkbox-row input { width: auto; }
+
+.nw-geo-point-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.nw-geo-point-actions label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.nw-geo-point-actions .nw-geo-pick-btn {
+  white-space: nowrap;
+}
 
 .nw-geo-list textarea {
   font-family: 'Cascadia Code', 'Consolas', monospace;

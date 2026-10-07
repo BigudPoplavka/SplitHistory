@@ -1,6 +1,7 @@
 import { store, init, subscribe, getNote, setSelection, setViewMode, deleteNote, addNote, saveVault, saveVaultAs, openVault } from './store.js';
 import { initScene, syncScene } from './scene.js';
-import { openNoteWindow, renderNoteWindows } from './ui/noteWindows.js';
+import { openNoteWindow, renderNoteWindows, getOpenNoteIds } from './ui/noteWindows.js';
+import { initOpenNotesBar, connectNoteWindowsApi } from './ui/openNotesBar.js';
 import { initLayerModal } from './ui/layerModal.js';
 import { initLayersPanel, renderLayersPanel } from './ui/layersPanel.js';
 import { initTreePanel, renderTreePanel } from './ui/treePanel.js';
@@ -9,6 +10,8 @@ import { initTimeline, renderTimeline } from './ui/timeline.js';
 import { renderMiniGraph } from './ui/miniGraph.js';
 import { initLayer2D, renderLayer2D } from './ui/layer2d.js';
 import { initPanelResize } from './ui/panelResize.js';
+import { loadWorldLandData } from './worldMap.js';
+import { initLocationPicker } from './ui/locationPicker.js';
 import { exportToGraphML } from './export/graphml.js';
 import { exportToGeoJSON } from './export/geojson.js';
 import { exportToTimelineCSV } from './export/csv.js';
@@ -113,6 +116,7 @@ async function doImportBibTeX() {
 
 async function bootstrap() {
   await init();
+  await loadWorldLandData();
 
   initScene(document.getElementById('scene-container'), {
     onSelectNote: (noteId) => setSelection({ noteId, layerId: getNote(noteId)?.layerId ?? store.selection.layerId }),
@@ -120,7 +124,7 @@ async function bootstrap() {
     onEditNote: (noteId) => openNoteWindow(noteId)
   });
 
-  initLayer2D(document.getElementById('layer-2d-canvas'), {
+  initLayer2D(document.getElementById('layer-2d-canvas'), document.getElementById('leaflet-map-container'), {
     onEditNote: (noteId) => openNoteWindow(noteId)
   });
 
@@ -129,6 +133,9 @@ async function bootstrap() {
   initTreePanel();
   initTimeline();
   initPanelResize();
+  connectNoteWindowsApi({ getOpenNoteIds, openNoteWindow });
+  initOpenNotesBar();
+  initLocationPicker();
 
   for (const btn of document.querySelectorAll('#view-mode-toggle button')) {
     btn.addEventListener('click', () => setViewMode(btn.dataset.mode));

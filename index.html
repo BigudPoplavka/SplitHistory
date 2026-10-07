@@ -4,17 +4,20 @@
 <meta charset="UTF-8" />
 <title>SplitHistory — историко-контекстуальные заметки</title>
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="./node_modules/leaflet/dist/leaflet.css" />
 <script type="importmap">
 {
   "imports": {
     "three": "./node_modules/three/build/three.module.js",
-    "three/addons/": "./node_modules/three/examples/jsm/"
+    "three/addons/": "./node_modules/three/examples/jsm/",
+    "leaflet": "./node_modules/leaflet/dist/leaflet-src.esm.js"
   }
 }
 </script>
 </head>
 <body>
 <div id="app">
+  <aside id="open-notes-bar" title="Открытые заметки, сгруппированные как слева — Alt+←/→/↑/↓ для навигации"></aside>
   <div id="resize-handle-left" class="panel-resize-handle"></div>
   <div id="resize-handle-right" class="panel-resize-handle"></div>
 
@@ -43,6 +46,7 @@
     <div id="scene-container"></div>
     <div id="layer-2d-container" class="hidden">
       <canvas id="layer-2d-canvas"></canvas>
+      <div id="leaflet-map-container" class="hidden"></div>
     </div>
 
     <div id="view-mode-toggle" class="floating-panel view-toggle">
@@ -50,7 +54,11 @@
       <button data-mode="2d">2D слой</button>
     </div>
 
-    <div id="note-tabs-dock" class="hidden"></div>
+    <div id="location-pick-banner" class="hidden">
+      <span class="location-pick-text"></span>
+      <button type="button" class="location-pick-cancel btn-secondary">Отмена</button>
+    </div>
+
 
     <div id="mini-graph-panel" class="floating-panel">
       <div class="floating-panel-title">Граф слоя</div>
@@ -96,6 +104,8 @@
   </aside>
 
 </div>
+
+<div id="open-notes-flyout" class="hidden"></div>
 
 <div id="layer-modal-overlay" class="overlay hidden">
   <div class="layer-modal">

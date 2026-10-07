@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "three": "^0.160.0"
   },
   "devDependencies": {

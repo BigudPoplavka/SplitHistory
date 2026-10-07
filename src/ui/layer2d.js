@@ -1,18 +1,31 @@
 import { store, getLayer, getNote, notesInLayer, isNoteInTimeline, setSelection } from '../store.js';
-import { drawWorldOutline, lngLatToUnit } from '../worldMap.js';
+import { drawWorldOutline, lngLatToUnit, unitToLngLat } from '../worldMap.js';
 import { computeLayerLayoutPixels } from '../layout2d.js';
 import { matchesQuery } from '../search.js';
+import { isPicking, resolvePick } from './locationPicker.js';
+import { initMapView, renderMapView, resizeMapView } from './mapView.js';
 
 let canvas, ctx;
+let mapContainer;
 let nodePositions = new Map();
 let onEditNoteCallback = null;
+let lastWidth = 0;
+let lastHeight = 0;
 
-export function initLayer2D(canvasEl, callbacks) {
+export function initLayer2D(canvasEl, leafletContainerEl, callbacks) {
   canvas = canvasEl;
   ctx = canvas.getContext('2d');
+  mapContainer = leafletContainerEl;
   onEditNoteCallback = callbacks.onEditNote;
   canvas.addEventListener('click', onCanvasClick);
   canvas.addEventListener('dblclick', onCanvasDblClick);
+  initMapView(mapContainer, {
+    onEditNote: onEditNoteCallback,
+    onSelectNote: (noteId) => {
+      const note = getNote(noteId);
+      if (note) setSelection({ noteId, layerId: note.layerId });
+    }
+  });
 }
 
 function resizeCanvasToContainer() {
@@ -43,6 +56,15 @@ function eventToCanvasXY(event) {
 
 function onCanvasClick(event) {
   const { x, y } = eventToCanvasXY(event);
+
+  if (isPicking()) {
+    if (lastWidth > 0 && lastHeight > 0) {
+      const { lat, lng } = unitToLngLat(x / lastWidth, y / lastHeight);
+      resolvePick(Math.round(lat * 100) / 100, Math.round(lng * 100) / 100);
+    }
+    return;
+  }
+
   const noteId = findNoteAt(x, y);
   if (!noteId) return;
   const note = getNote(noteId);
@@ -57,11 +79,29 @@ function onCanvasDblClick(event) {
 
 export function renderLayer2D() {
   if (!canvas) return;
+  const layerId = store.selection.layerId;
+  const layer = layerId ? getLayer(layerId) : null;
+  const showMap = !!layer && layer.kind === 'map';
+
+  canvas.classList.toggle('hidden', showMap);
+  mapContainer.classList.toggle('hidden', !showMap);
+
+  if (showMap) {
+    const notes = notesInLayer(layerId)
+      .filter(isNoteInTimeline)
+      .filter((n) => matchesQuery(n, store.searchQuery));
+    resizeMapView();
+    renderMapView(layer, notes, store.selection.noteId);
+    return;
+  }
+
   const { width, height } = resizeCanvasToContainer();
+  lastWidth = width;
+  lastHeight = height;
+  canvas.classList.toggle('picking', isPicking());
   ctx.clearRect(0, 0, width, height);
   drawWorldOutline(ctx, width, height, { fill: '#33363c', stroke: '#45484e' });
 
-  const layerId = store.selection.layerId;
   if (!layerId) {
     nodePositions = new Map();
     ctx.fillStyle = '#9a9da3';
@@ -71,7 +111,6 @@ export function renderLayer2D() {
     return;
   }
 
-  const layer = getLayer(layerId);
   const notes = notesInLayer(layerId)
     .filter(isNoteInTimeline)
     .filter((n) => matchesQuery(n, store.searchQuery));
