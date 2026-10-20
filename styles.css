@@ -340,6 +340,9 @@ button:hover { filter: brightness(1.15); }
   background: transparent;
   position: absolute;
   inset: 0;
+  /* Свой стек наложения — иначе CSS2D-подписи слоёв/заметок всплывают поверх
+     таймлайна и мини-графа при приближении камеры (у них тоже нет z-index). */
+  z-index: 1;
 }
 
 #scene-container canvas { display: block; cursor: default; }
@@ -347,6 +350,7 @@ button:hover { filter: brightness(1.15); }
 #layer-2d-container {
   position: absolute;
   inset: 0;
+  z-index: 1;
 }
 
 #layer-2d-canvas { display: block; cursor: pointer; }
@@ -437,6 +441,7 @@ button:hover { filter: brightness(1.15); }
 
 .floating-panel {
   position: absolute;
+  z-index: 10;
   background: rgba(42, 44, 48, 0.92);
   border: 1px solid var(--border);
   border-radius: 6px;

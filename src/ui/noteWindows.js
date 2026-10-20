@@ -379,7 +379,7 @@ function wireWindowEvents(win) {
   refs.geoKind.addEventListener('change', () => {
     const kind = refs.geoKind.value;
     if (kind === 'none') updateNote(noteId, { geo: null, route: null, region: null });
-    else if (kind === 'point') updateNote(noteId, { route: null, region: null });
+    else if (kind === 'point') updateNote(noteId, { route: null, region: null, geo: getNote(noteId).geo || { lat: 0, lng: 0 } });
     else if (kind === 'route') updateNote(noteId, { geo: null, region: null, route: getNote(noteId).route || [] });
     else if (kind === 'region') updateNote(noteId, { geo: null, route: null, region: getNote(noteId).region || [] });
     syncGeoEditor(win, getNote(noteId));

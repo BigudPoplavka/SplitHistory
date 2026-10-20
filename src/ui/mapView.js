@@ -14,6 +14,8 @@ let onEditNoteCallback = null;
 let onSelectNoteCallback = null;
 let lastFitLayerId = null;
 let currentLayerId = null;
+let currentLayerKind = null;
+let lastPannedNoteId = null;
 let lastMarkerClickId = null;
 let lastMarkerClickTime = 0;
 
@@ -43,7 +45,10 @@ export function initMapView(container, callbacks) {
 
   map.on('dblclick', (e) => {
     if (isPicking() || !currentLayerId) return;
-    createNoteWindow(currentLayerId, { type: 'artifact', geo: { lat: Math.round(e.latlng.lat * 100) / 100, lng: Math.round(e.latlng.lng * 100) / 100 } });
+    // На слое-карте двойной клик создаёт заметку-место; на остальных слоях (например,
+    // «События») — заметку обычного типа слоя, но с уже проставленной геопривязкой.
+    const type = currentLayerKind === 'map' ? 'artifact' : 'event';
+    createNoteWindow(currentLayerId, { type, geo: { lat: Math.round(e.latlng.lat * 100) / 100, lng: Math.round(e.latlng.lng * 100) / 100 } });
   });
 }
 
@@ -58,6 +63,7 @@ function anchorToLatLng(anchor) {
 export function renderMapView(layer, notes, selectedNoteId) {
   if (!map) return;
   currentLayerId = layer ? layer.id : null;
+  currentLayerKind = layer ? layer.kind : null;
   map.getContainer().classList.toggle('picking', isPicking());
   markersLayer.clearLayers();
   linesLayer.clearLayers();
@@ -65,6 +71,7 @@ export function renderMapView(layer, notes, selectedNoteId) {
   const color = (layer && layer.color) || '#e0645a';
   const idSet = new Set(notes.map((n) => n.id));
   const anchored = [];
+  let selectedAnchor = null;
 
   const seenEdge = new Set();
   for (const note of notes) {
@@ -92,6 +99,7 @@ export function renderMapView(layer, notes, selectedNoteId) {
     anchored.push(anchor);
 
     const selected = note.id === selectedNoteId;
+    if (selected) selectedAnchor = anchor;
     const marker = L.circleMarker(anchorToLatLng(anchor), {
       radius: selected ? 8 : 6,
       color: selected ? '#ffffff' : color,
@@ -122,11 +130,17 @@ export function renderMapView(layer, notes, selectedNoteId) {
 
   if (layer && layer.id !== lastFitLayerId) {
     lastFitLayerId = layer.id;
+    lastPannedNoteId = selectedNoteId;
     if (anchored.length > 0) {
       const bounds = L.latLngBounds(anchored.map(anchorToLatLng));
       map.fitBounds(bounds.pad(0.3), { maxZoom: 10 });
     } else {
       map.setView([20, 10], 2);
     }
+  } else if (selectedNoteId && selectedNoteId !== lastPannedNoteId && selectedAnchor) {
+    lastPannedNoteId = selectedNoteId;
+    map.panTo(anchorToLatLng(selectedAnchor), { animate: true });
+  } else if (selectedNoteId !== lastPannedNoteId) {
+    lastPannedNoteId = selectedNoteId;
   }
 }
