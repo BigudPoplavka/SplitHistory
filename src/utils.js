@@ -1,3 +1,4 @@
+import { resolveFile } from './obsidian.mjs';
 export function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -43,13 +44,38 @@ export function extractWikiLinkTitles(content) {
   return [...titles];
 }
 
-/** Сопоставляет заголовки из [[ ]] с реальными заметками (по точному совпадению названия). */
+/** Resolves a note inside its project/import namespace, including relative paths and anchors. */
+function findLinkedNote(title, notes, selfId, wiki = true) {
+  let file = title.split('#')[0];
+  try { file = decodeURIComponent(file); } catch {}
+  if (!file) return notes.find(n => n.id === selfId);
+  const source = notes.find(n => n.id === selfId);
+  if (source?.file) {
+    const scope = /^Obsidian\/[^/]+\//.exec(source.file)?.[0] || '';
+    const scoped = notes.filter(n => n.file?.startsWith(scope));
+    const resolved = resolveFile({file,wiki},source.file.slice(scope.length),scoped.map(n => n.file.slice(scope.length)));
+    if (resolved) return scoped.find(n => n.file === scope + resolved);
+    return null;
+  }
+  return notes.find(n => n.id !== selfId && n.title.trim().toLowerCase() === file.replace(/\.md$/i,'').toLowerCase());
+}
 export function resolveWikiLinks(content, notes, selfId) {
-  const titles = extractWikiLinkTitles(content);
-  return titles.map((title) => {
-    const note = notes.find((n) => n.id !== selfId && n.title.trim().toLowerCase() === title.toLowerCase());
-    return { title, note: note || null };
-  });
+  return extractWikiLinkTitles(content).map(title => ({title,note:findLinkedNote(title,notes,selfId) || null}));
+}
+function localAttachment(raw, notes, selfId, label, embed) {
+  const source = notes?.find(n => n.id === selfId);
+  let name = raw.split('|')[0].split('#')[0];
+  try { name = decodeURIComponent(name); } catch {}
+  const attachments = source?.attachments || [];
+  const resolved = source?.sourceLinks?.find(r => r.raw.split('#')[0] === name);
+  const att = attachments.find(a => resolved?.file === a.file) || attachments.find(a => a.fileName === name);
+  if (!att) return escapeHtml(label);
+  const url = 'file:///' + att.path.replace(/\\/g,'/').split('/').map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/,'$1:');
+  const attr = `class="md-attachment" data-attachment-id="${escapeHtml(att.id)}"`;
+  if (embed && /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(att.fileName)) return `<img src="${escapeHtml(url)}" alt="${escapeHtml(label)}" style="max-width:100%" ${attr}>`;
+  if (embed && /\.(mp3|wav|ogg|m4a)$/i.test(att.fileName)) return `<audio controls src="${escapeHtml(url)}"></audio>`;
+  if (embed && /\.(mp4|webm)$/i.test(att.fileName)) return `<video controls src="${escapeHtml(url)}" style="max-width:100%"></video>`;
+  return `<button type="button" ${attr}>${escapeHtml(label)}</button>`;
 }
 
 export function parseTagsInput(value) {
@@ -78,19 +104,24 @@ export function extractHeadings(content) {
 function renderInline(text, notes, selfId) {
   let html = escapeHtml(text);
 
-  html = html.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (full, title, alias) => {
+  html = html.replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (full, title, alias) => {
     const cleanTitle = title.trim();
     const label = escapeHtml((alias || cleanTitle).trim());
-    const target = (notes || []).find(
-      (n) => n.id !== selfId && n.title.trim().toLowerCase() === cleanTitle.toLowerCase()
-    );
+    const target = findLinkedNote(cleanTitle, notes || [], selfId);
+    const media = (notes || []).find(n => n.id === selfId)?.sourceLinks?.find(r => r.raw === cleanTitle && r.file && !r.target);
+    if (!target && (full.startsWith('!') || media)) return localAttachment(cleanTitle, notes, selfId, alias || cleanTitle, full.startsWith('!'));
     return target
-      ? `<span class="md-wikilink resolved" data-note-id="${target.id}">${label}</span>`
+      ? `<span class="md-wikilink resolved" data-note-id="${escapeHtml(target.id)}">${label}</span>`
       : `<span class="md-wikilink unresolved" data-title="${escapeHtml(cleanTitle)}">${label}</span>`;
   });
 
   html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (full, label, url) =>
     `<a href="#" class="md-link" data-href="${escapeHtml(url)}">${escapeHtml(label)}</a>`);
+
+  html = html.replace(/(!?)\[([^\]]+)\]\((?!https?:)([^)]+)\)/g, (full,embed,label,raw) => {
+    const target = findLinkedNote(raw, notes || [], selfId, false);
+    return target ? `<span class="md-wikilink resolved" data-note-id="${escapeHtml(target.id)}">${label}</span>` : localAttachment(raw,notes,selfId,label,!!embed);
+  });
 
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');

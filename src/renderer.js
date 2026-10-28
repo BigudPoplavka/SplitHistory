@@ -1,4 +1,4 @@
-import { store, init, subscribe, getNote, setSelection, setViewMode, deleteNote, addNote, saveVault, saveVaultAs, openVault } from './store.js';
+import { store, init, subscribe, getNote, setSelection, setViewMode, deleteNote, addNote, saveVault, saveVaultAs, openVault, projectAction } from './store.js';
 import { initScene, syncScene } from './scene.js';
 import { openNoteWindow, renderNoteWindows, getOpenNoteIds } from './ui/noteWindows.js';
 import { initOpenNotesBar, connectNoteWindowsApi } from './ui/openNotesBar.js';
@@ -38,6 +38,7 @@ function syncViewMode() {
 }
 
 function renderAll() {
+  document.title = `SplitHistory — ${store.filePath || ''}`;
   syncViewMode();
   if (store.viewMode === '3d') {
     syncScene();
@@ -52,8 +53,14 @@ function renderAll() {
   renderNoteWindows();
 }
 
+async function flushEditor() {
+  document.activeElement?.blur();
+  await new Promise(resolve => setTimeout(resolve,450));
+}
+
 async function doSave() {
   try {
+    await flushEditor();
     const filePath = await saveVault();
     showToast(`Сохранено: ${filePath}`);
   } catch (err) {
@@ -63,6 +70,7 @@ async function doSave() {
 
 async function doSaveAs() {
   try {
+    await flushEditor();
     const filePath = await saveVaultAs();
     if (filePath) showToast(`Сохранено как: ${filePath}`);
   } catch (err) {
@@ -72,6 +80,7 @@ async function doSaveAs() {
 
 async function doOpen() {
   try {
+    await flushEditor();
     const opened = await openVault();
     if (opened) showToast('Хранилище открыто');
   } catch (err) {
@@ -148,6 +157,24 @@ async function bootstrap() {
   subscribe(renderAll);
   renderAll();
 
+  window.addEventListener('vault-save-error', event => showToast(`Ошибка автосохранения: ${event.detail}`));
+  window.vaultAPI.onFlushClose(async () => {
+    document.activeElement?.blur();
+    await new Promise(resolve => setTimeout(resolve,500));
+    try { await saveVault(); window.vaultAPI.closeReady(); }
+    catch (err) { window.alert(`Ошибка сохранения: ${err.message}`); }
+  });
+  window.vaultAPI.onMenuProject(async (_event,action) => {
+    try {
+      document.activeElement?.blur();
+      await new Promise(resolve => setTimeout(resolve,500));
+      const result = await projectAction(action);
+      if (result) {
+        if (result.report?.unresolved.length) window.alert('Импорт завершён. Неразрешённые ссылки:\n' + result.report.unresolved.join('\n'));
+        showToast(result.report ? `Импортировано заметок: ${result.report.count}` : 'Проект открыт');
+      }
+    } catch (err) { window.alert(`Ошибка проекта: ${err.message}`); }
+  });
   window.vaultAPI.onMenuSave(doSave);
   window.vaultAPI.onMenuSaveAs(doSaveAs);
   window.vaultAPI.onMenuOpen(doOpen);

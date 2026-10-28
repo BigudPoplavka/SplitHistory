@@ -49,7 +49,7 @@ function scheduleAutosave() {
   autosaveTimer = setTimeout(() => {
     window.vaultAPI.save(store.data)
       .then((result) => { if (result) store.filePath = result.filePath; })
-      .catch(() => { /* тихо игнорируем — есть ручное сохранение как запасной вариант */ });
+      .catch(error => window.dispatchEvent(new CustomEvent('vault-save-error',{detail:error.message})));
   }, AUTOSAVE_DELAY_MS);
 }
 
@@ -365,11 +365,14 @@ export async function saveVaultAs() {
   const result = await window.vaultAPI.saveAs(store.data);
   if (!result) return null;
   store.filePath = result.filePath;
+  if (result.data) store.data = normalizeData(result.data);
   notify();
   return result.filePath;
 }
 
 export async function openVault() {
+  clearTimeout(autosaveTimer);
+  await window.vaultAPI.save(store.data);
   const result = await window.vaultAPI.open();
   if (!result) return false;
   store.data = normalizeData(result.data);
@@ -380,4 +383,19 @@ export async function openVault() {
   hasLoadedVault = true;
   notify();
   return true;
+}
+
+export async function projectAction(action) {
+  clearTimeout(autosaveTimer);
+  await window.vaultAPI.save(store.data);
+  const result = await window.vaultAPI.projectAction(action,store.data);
+  if (!result) return null;
+  store.data = normalizeData(result.data);
+  store.filePath = result.filePath;
+  store.timeline = freshTimeline();
+  store.selection = {noteId:null,layerId:null};
+  store.recentNoteIds = [];
+  store.searchQuery = '';
+  notify();
+  return result;
 }

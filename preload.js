@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('vaultAPI', {
+  projectAction: (action,data) => ipcRenderer.invoke('project:action',action,data),
+  onMenuProject: (callback) => ipcRenderer.on('menu:project',callback),
+  onFlushClose: callback => ipcRenderer.on('menu:flush-close',callback),
+  closeReady: () => ipcRenderer.send('vault:close-ready'),
   load: () => ipcRenderer.invoke('vault:load'),
   save: (data) => ipcRenderer.invoke('vault:save', data),
   saveAs: (data) => ipcRenderer.invoke('vault:save-as', data),

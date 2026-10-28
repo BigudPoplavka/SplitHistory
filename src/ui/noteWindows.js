@@ -450,6 +450,12 @@ function wireWindowEvents(win) {
   });
 
   refs.preview.addEventListener('click', (e) => {
+    const attachment = e.target.closest('.md-attachment');
+    if (attachment) {
+      const att = getNote(noteId)?.attachments.find(a => a.id === attachment.dataset.attachmentId);
+      if (att) window.vaultAPI.attachmentOpen?.(att.path);
+      return;
+    }
     const wikiLink = e.target.closest('.md-wikilink');
     if (wikiLink) {
       if (wikiLink.classList.contains('resolved')) {
