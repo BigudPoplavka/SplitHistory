@@ -81,9 +81,8 @@ export function renderLayer2D() {
   if (!canvas) return;
   const layerId = store.selection.layerId;
   const layer = layerId ? getLayer(layerId) : null;
-  // Карта также показывается на слое событий: заметки о событиях часто привязаны
-  // к месту, и их удобно сразу создавать кликом по карте с готовой геопривязкой.
-  const showMap = !!layer && (layer.kind === 'map' || layer.id === 'events');
+  // Интерактивная карта доступна на любом выбранном слое.
+  const showMap = !!layer;
 
   canvas.classList.toggle('hidden', showMap);
   mapContainer.classList.toggle('hidden', !showMap);
